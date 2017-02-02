@@ -1,0 +1,26 @@
+{
+  "name": "ha-presence-detector",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chacal/ha-presence-detector.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chacal/ha-presence-detector/issues"
+  },
+  "homepage": "https://github.com/chacal/ha-presence-detector#readme",
+  "dependencies": {
+    "express": "^4.14.1",
+    "morgan": "^1.7.0",
+    "ssh2": "^0.5.4",
+    "ssh2-streams": "^0.1.16",
+    "winston": "^2.3.1"
+  }
+}
