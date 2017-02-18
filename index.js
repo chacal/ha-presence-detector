@@ -3,9 +3,14 @@ const express = require('express')
 const app = express()
 const Client = require('ssh2').Client
 const ssh2s = require("ssh2-streams")
-const sshCredentials = require('./ssh_credentials.json')
+const sshHost = process.env.SSH_HOST
+const sshUsername = process.env.SSH_USERNAME
+const sshPassword = process.env.SSH_PASSWORD
 const log = require('winston')
 const morgan = require('morgan')
+const assert = require('assert')
+
+assert(sshHost && sshUsername && sshPassword, 'SSH credentials not found! Set SSH_HOST, SSH_USERNAME & SSH_PASSWORD environment variables')
 
 app.use(morgan('combined'))
 
@@ -55,10 +60,10 @@ app.get('/wifi/:mac', (req, res) => {
       res.status(500).end()
     })
     .connect({
-      host: sshCredentials.host,
+      host: sshHost,
       port: 22,
-      username: sshCredentials.username,
-      password: sshCredentials.password,
+      username: sshUsername,
+      password: sshPassword,
       algorithms: {
         kex: ssh2s.constants.ALGORITHMS.SUPPORTED_KEX
       }
