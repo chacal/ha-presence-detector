@@ -1,16 +1,15 @@
 const exec = require('child_process').exec
 const express = require('express')
 const app = express()
-const Client = require('ssh2').Client
-const ssh2s = require("ssh2-streams")
-const sshHost = process.env.SSH_HOST
-const sshUsername = process.env.SSH_USERNAME
-const sshPassword = process.env.SSH_PASSWORD
+const telnetHost = process.env.HOST
+const username = process.env.USERNAME
+const password = process.env.PASSWORD
 const log = require('winston')
 const morgan = require('morgan')
 const assert = require('assert')
+const Telnet = require('telnet-client')
 
-assert(sshHost && sshUsername && sshPassword, 'SSH credentials not found! Set SSH_HOST, SSH_USERNAME & SSH_PASSWORD environment variables')
+assert(telnetHost && username && password, 'Telnet credentials not found! Set HOST, USERNAME & PASSWORD environment variables')
 
 app.use(morgan('combined'))
 
@@ -33,41 +32,34 @@ app.get('/bt/:mac', (req, res) => {
 
 app.get('/wifi/:mac', (req, res) => {
 
-  const conn = new Client()
-  conn
-    .on('ready', () => {
-      let output = ''
+  const params = {
+    host: telnetHost,
+    username: username,
+    password: password,
+    timeout: 4000
+  }
 
-      conn.exec("{ wl -i eth2 assoclist; wl -i eth1 assoclist; } | cut -d' ' -f2", (err, stream) => {
-        if(err) {
-          log.error(err)
-          res.status(500).end()
-          return
-        }
+  const conn = new Telnet()
+  conn.on('error', handleError)
+  conn.on('failedlogin', () => handleError('Login failed'))
+  conn.on('timeout', () => handleError('Timeout'))
 
-        stream
-          .on('data', data => output += data)
-          .on('close', () => {
-            const response = { deviceDetected: output.trim().includes(req.params.mac) }
-            res.json(response)
-            conn.end()
-            log.info("Wifi checked", req.params.mac, response)
-          })
-      })
+  conn.connect(params)
+    .then(() => conn.exec('(wlanconfig ath0 list sta; wlanconfig ath1 list sta) | grep -v ADDR | cut -d" " -f 1'))
+    .then(macList => {
+      const response = { deviceDetected: macList.trim().includes(req.params.mac) }
+      res.json(response)
+      log.info("Wifi checked", req.params.mac, response)
+      conn.end()
     })
-    .on('error', err => {
-      log.error(err, 'Error with SSH connection')
-      res.status(500).end()
-    })
-    .connect({
-      host: sshHost,
-      port: 22,
-      username: sshUsername,
-      password: sshPassword,
-      algorithms: {
-        kex: ssh2s.constants.ALGORITHMS.SUPPORTED_KEX
-      }
-   })
+    .catch(handleError)
+
+
+  function handleError(e) {
+    log.error(e)
+    res.status(500).end()
+    conn.end()
+  }
 })
 
 

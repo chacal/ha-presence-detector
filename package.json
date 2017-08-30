@@ -19,8 +19,7 @@
   "dependencies": {
     "express": "^4.14.1",
     "morgan": "^1.7.0",
-    "ssh2": "^0.5.4",
-    "ssh2-streams": "^0.1.16",
+    "telnet-client": "^0.15.2",
     "winston": "^2.3.1"
   }
 }
