@@ -47,7 +47,7 @@ app.get('/wifi/:mac', (req, res) => {
   conn.connect(params)
     .then(() => conn.exec('(wlanconfig ath0 list sta; wlanconfig ath1 list sta) | grep -v ADDR | cut -d" " -f 1'))
     .then(macList => {
-      const response = { deviceDetected: macList.trim().includes(req.params.mac) }
+      const response = { deviceDetected: macList.trim().toLowerCase().includes(req.params.mac.toLowerCase()) }
       res.json(response)
       log.info("Wifi checked", req.params.mac, response)
       conn.end()
