@@ -5,13 +5,10 @@ const telnetHost = process.env.HOST
 const username = process.env.USERNAME
 const password = process.env.PASSWORD
 const log = require('winston')
-const morgan = require('morgan')
 const assert = require('assert')
 const Telnet = require('telnet-client')
 
 assert(telnetHost && username && password, 'Telnet credentials not found! Set HOST, USERNAME & PASSWORD environment variables')
-
-app.use(morgan('combined'))
 
 app.get('/bt/:mac', (req, res) => {
 
@@ -24,7 +21,6 @@ app.get('/bt/:mac', (req, res) => {
 
     const response = { deviceDetected: stdout.trim().length > 0 }
     res.json(response)
-    log.info("BT checked", req.params.mac, response)
   })
 
 })
@@ -49,7 +45,6 @@ app.get('/wifi/:mac', (req, res) => {
     .then(macList => {
       const response = { deviceDetected: macList.trim().toLowerCase().includes(req.params.mac.toLowerCase()) }
       res.json(response)
-      log.info("Wifi checked", req.params.mac, response)
       conn.end()
     })
     .catch(handleError)
