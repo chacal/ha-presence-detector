@@ -1,14 +1,24 @@
 const exec = require('child_process').exec
 const express = require('express')
 const app = express()
-const telnetHost = process.env.HOST
-const username = process.env.USERNAME
-const password = process.env.PASSWORD
+const unifiHost = process.env.UNIFI_HOST || 'unifi.chacal.fi'
+const unifiUsername = process.env.UNIFI_USERNAME
+const unifiPassword = process.env.UNIFI_PASSWORD
 const log = require('winston')
 const assert = require('assert')
-const Telnet = require('telnet-client')
+const unifi = require('node-unifi')
+const Bluebird = require('bluebird')
 
-assert(telnetHost && username && password, 'Telnet credentials not found! Set HOST, USERNAME & PASSWORD environment variables')
+assert(unifiUsername && unifiPassword, 'Unifi credentials not found! Set UNIFI_USERNAME & UNIFI_PASSWORD environment variables')
+
+const ALLOWED_TIME_SINCE_LAST_SEEN_MS = 35 * 1000
+const controller = new unifi.Controller(unifiHost, 8443)
+
+controller.login(unifiUsername, unifiPassword, err => {
+  if(err) {
+    log.error('Error when logging in to Unifi Controller.', err)
+  }
+})
 
 app.get('/bt/:mac', (req, res) => {
 
@@ -19,7 +29,7 @@ app.get('/bt/:mac', (req, res) => {
       return
     }
 
-    const response = { deviceDetected: stdout.trim().length > 0 }
+    const response = {deviceDetected: stdout.trim().length > 0}
     res.json(response)
   })
 
@@ -28,32 +38,19 @@ app.get('/bt/:mac', (req, res) => {
 
 app.get('/wifi/:mac', (req, res) => {
 
-  const params = {
-    host: telnetHost,
-    username: username,
-    password: password,
-    timeout: 4000
-  }
-
-  const conn = new Telnet()
-  conn.on('error', handleError)
-  conn.on('failedlogin', () => handleError('Login failed'))
-  conn.on('timeout', () => handleError('Timeout'))
-
-  conn.connect(params)
-    .then(() => conn.exec('(wlanconfig ath0 list sta; wlanconfig ath1 list sta) | grep -v ADDR | cut -d" " -f 1'))
-    .then(macList => {
-      const response = { deviceDetected: macList.trim().toLowerCase().includes(req.params.mac.toLowerCase()) }
-      res.json(response)
-      conn.end()
+  Bluebird.fromCallback(cb => controller.getClientDevice('default', cb, req.params.mac.toLowerCase()))
+    .then(res2 => {
+      const deviceDetected = res2 && res2[0] && res2[0][0] && (new Date() - new Date(parseInt(res2[0][0].last_seen) * 1000) < ALLOWED_TIME_SINCE_LAST_SEEN_MS)
+      res.json({deviceDetected})
+    })
+    .catch(e => e.toString().includes('UnknownUser'), () => {
+      res.json({deviceDetected: false})
     })
     .catch(handleError)
-
 
   function handleError(e) {
     log.error(e)
     res.status(500).end()
-    conn.end()
   }
 })
 

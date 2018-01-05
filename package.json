@@ -17,8 +17,10 @@
   },
   "homepage": "https://github.com/chacal/ha-presence-detector#readme",
   "dependencies": {
+    "bluebird": "^3.5.1",
     "express": "^4.14.1",
     "morgan": "^1.7.0",
+    "node-unifi": "^1.2.2",
     "telnet-client": "^0.15.2",
     "winston": "^2.3.1"
   }
