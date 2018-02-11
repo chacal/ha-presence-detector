@@ -14,11 +14,6 @@ assert(unifiUsername && unifiPassword, 'Unifi credentials not found! Set UNIFI_U
 const ALLOWED_TIME_SINCE_LAST_SEEN_MS = 35 * 1000
 const controller = new unifi.Controller(unifiHost, 8443)
 
-controller.login(unifiUsername, unifiPassword, err => {
-  if(err) {
-    log.error('Error when logging in to Unifi Controller.', err)
-  }
-})
 
 app.get('/bt/:mac', (req, res) => {
 
@@ -38,15 +33,28 @@ app.get('/bt/:mac', (req, res) => {
 
 app.get('/wifi/:mac', (req, res) => {
 
-  Bluebird.fromCallback(cb => controller.getClientDevice('default', cb, req.params.mac.toLowerCase()))
-    .then(res2 => {
-      const deviceDetected = res2 && res2[0] && res2[0][0] && (new Date() - new Date(parseInt(res2[0][0].last_seen) * 1000) < ALLOWED_TIME_SINCE_LAST_SEEN_MS)
-      res.json({deviceDetected})
-    })
-    .catch(e => e.toString().includes('UnknownUser'), () => {
-      res.json({deviceDetected: false})
-    })
-    .catch(handleError)
+  fetchWifiStatus()
+
+  function fetchWifiStatus() {
+    return Bluebird.fromCallback(cb => controller.getClientDevice('default', cb, req.params.mac.toLowerCase()))
+      .then(res2 => {
+        const deviceDetected = res2 && res2[0] && res2[0][0] && (new Date() - new Date(parseInt(res2[0][0].last_seen) * 1000) < ALLOWED_TIME_SINCE_LAST_SEEN_MS)
+        res.json({deviceDetected})
+      })
+      .catch(e => e.toString().includes('LoginRequired'), () => {
+        return loginToUnifi()
+          .then(fetchWifiStatus)
+      })
+      .catch(e => e.toString().includes('UnknownUser'), () => {
+        res.json({deviceDetected: false})
+      })
+      .catch(handleError)
+  }
+
+  function loginToUnifi() {
+    log.info("Logging in to Unifi..")
+    return Bluebird.fromCallback(cb => controller.login(unifiUsername, unifiPassword, cb))
+  }
 
   function handleError(e) {
     log.error(e)
